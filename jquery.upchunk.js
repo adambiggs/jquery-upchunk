@@ -8,8 +8,8 @@
     var Plugin, defaults, pluginName;
     pluginName = 'upchunk';
     defaults = {
-      chunk_url: '',
-      file_url: '',
+      url: '',
+      chunk: false,
       fallback_id: '',
       chunk_size: 1024,
       file_param: 'file',
@@ -17,7 +17,6 @@
       max_file_size: 0,
       queue_size: 2,
       data: {},
-      refresh_rate: 1000,
       drop: function() {},
       dragEnter: function() {},
       dragOver: function() {},
@@ -27,13 +26,14 @@
       docLeave: function() {},
       beforeEach: function() {},
       afterAll: function() {},
-      rename: function() {},
+      rename: function(s) {
+        return s;
+      },
       error: function(err) {
         return alert(err);
       },
       fileAdded: function() {},
       uploadStarted: function() {},
-      chunkFinished: function() {},
       uploadFinished: function() {},
       progressUpdated: function() {}
     };
@@ -78,16 +78,28 @@
       };
 
       Plugin.prototype.process = function(i) {
-        var chunk_size, chunks, file, n, next_chunk, next_file, send,
+        var chunk_size, chunks, file, n, next_chunk, next_file, progress, send,
           _this = this;
+        progress = function(e) {
+          var hash, old, pchunk, percentage;
+          if (!(typeof old !== "undefined" && old !== null)) old = 0;
+          pchunk = chunk_size * 100 / file.size;
+          percentage = Math.floor(((e.loaded * 100) / file.size) + (n - 1) * pchunk);
+          if (percentage > old) {
+            old = percentage;
+            hash = (_this.hash(file.name) + file.size).toString();
+            return _this.opts.progressUpdated(file, hash, percentage);
+          }
+        };
         next_file = function() {
           var next;
           next = _this.todoQ.pop();
           if (next) {
+            _this.opts.uploadStarted(next, hash);
             _this.processQ.splice(i, 1, next);
             return _this.process(i);
           } else {
-
+            return _this.opts.afterAll();
           }
         };
         next_chunk = function() {
@@ -100,14 +112,16 @@
           } else {
             chunk = file.webkitSlice(start, end);
           }
-          return send(chunk, _this.opts.chunk_url);
+          return send(chunk, _this.opts.url);
         };
         send = function(chunk, url) {
-          var fd, name, value, xhr, _ref;
+          var fd, hash, name, value, xhr, _ref;
+          hash = (_this.hash(file.name) + file.size).toString();
+          _this.opts.beforeEach();
           fd = new FormData;
           fd.append(_this.opts.file_param, chunk);
-          fd.append(_this.opts.name_param, file.name);
-          fd.append('hash', (_this.hash(file.name) + file.size).toString());
+          fd.append(_this.opts.name_param, _this.opts.rename(file.name));
+          fd.append('hash', hash);
           _ref = _this.opts.data;
           for (name in _ref) {
             value = _ref[name];
@@ -120,15 +134,13 @@
           }
           xhr = new XMLHttpRequest;
           xhr.open('POST', url, true);
+          xhr.upload.addEventListener('progress', progress, false);
           xhr.send(fd);
           return xhr.onload = function() {
-            if (typeof chunks !== "undefined" && chunks !== null) {
-              if (n < chunks) {
-                return next_chunk();
-              } else {
-                return next_file();
-              }
+            if ((typeof chunks !== "undefined" && chunks !== null) && n < chunks) {
+              return next_chunk();
             } else {
+              _this.opts.uploadFinished(file, hash, $.parseJSON(xhr.responseText));
               return next_file();
             }
           };
@@ -139,8 +151,8 @@
           next_file();
           return false;
         }
-        if (this.opts.file_url) {
-          return send(file, this.opts.file_url);
+        if (this.opts.chunk === false) {
+          return send(file, this.opts.url);
         } else {
           chunk_size = 1024 * this.opts.chunk_size;
           chunks = Math.ceil(file.size / chunk_size);
@@ -150,8 +162,9 @@
       };
 
       Plugin.prototype.drop = function(e) {
-        var file, i, _i, _len, _ref, _ref2;
+        var file, hash, i, _i, _len, _ref, _ref2;
         this.docLeave(e);
+        this.opts.drop(e);
         this.files = e.originalEvent.dataTransfer.files;
         if (!this.files) {
           this.opts.error(this.errors.notSupported);
@@ -167,6 +180,8 @@
         for (i = 0, _ref2 = this.opts.queue_size; 0 <= _ref2 ? i <= _ref2 : i >= _ref2; 0 <= _ref2 ? i++ : i--) {
           file = this.todoQ.pop();
           if (file) {
+            hash = (this.hash(file.name) + file.size).toString();
+            this.opts.uploadStarted(file, hash);
             this.processQ.push(file);
             this.process(i);
           }

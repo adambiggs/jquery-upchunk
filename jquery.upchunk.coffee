@@ -10,8 +10,8 @@
 
   pluginName = 'upchunk'
   defaults =
-    chunk_url: '',
-    file_url: '',
+    url: '',
+    chunk: false,
     fallback_id: '',
     chunk_size: 1024,
     file_param: 'file',
@@ -19,7 +19,6 @@
     max_file_size: 0,
     queue_size: 2,
     data: {},
-    refresh_rate: 1000,
     drop: ->,
     dragEnter: ->,
     dragOver: ->,
@@ -29,11 +28,10 @@
     docLeave: ->,
     beforeEach: ->,
     afterAll: ->
-    rename: ->,
+    rename: (s) -> s,
     error: (err) -> alert err,
     fileAdded: ->,
     uploadStarted: ->,
-    chunkFinished: ->,
     uploadFinished: ->,
     progressUpdated: ->
 
@@ -58,7 +56,6 @@
           hash = test & test unless isNaN(test)
         Math.abs(hash)
 
-
       @init()
 
     init: ->
@@ -66,13 +63,23 @@
       $(document).on('drop', @docDrop).on('dragenter', @docEnter).on('dragover', @docOver).on('dragleave', @docLeave)
 
     process: (i) =>
+      progress = (e) =>
+        old = 0 if !old?
+        pchunk = chunk_size * 100 / file.size
+        percentage = Math.floor(((e.loaded * 100) / file.size) + (n - 1) * pchunk)
+        if percentage > old
+          old = percentage
+          hash = (@hash(file.name) + file.size).toString()
+          @opts.progressUpdated(file, hash, percentage)
+
       next_file = =>
         next = @todoQ.pop()
         if next
+          @opts.uploadStarted(next, hash)
           @processQ.splice(i, 1, next)
           @process(i)
         else
-          #end
+          @opts.afterAll()
 
       next_chunk = =>
         start = chunk_size * n
@@ -82,13 +89,15 @@
           chunk = file.mozSlice(start, end)
         else
           chunk = file.webkitSlice(start, end)
-        send(chunk, @opts.chunk_url)
+        send(chunk, @opts.url)
 
       send = (chunk, url) =>
+        hash = (@hash(file.name) + file.size).toString()
+        @opts.beforeEach()
         fd = new FormData
         fd.append(@opts.file_param, chunk)
-        fd.append(@opts.name_param, file.name)
-        fd.append('hash', (@hash(file.name) + file.size).toString())
+        fd.append(@opts.name_param, @opts.rename(file.name))
+        fd.append('hash', hash)
         fd.append(name, value) for name, value of @opts.data
         if n == chunks
           fd.append('last', true)
@@ -96,14 +105,13 @@
           fd.append('last', false)
         xhr = new XMLHttpRequest
         xhr.open('POST', url, true)
+        xhr.upload.addEventListener('progress', progress, false)
         xhr.send(fd)
-        xhr.onload = ->
-          if chunks?
-            if n < chunks
-              next_chunk()
-            else
-              next_file()
+        xhr.onload = =>
+          if chunks? && n < chunks
+            next_chunk()
           else
+            @opts.uploadFinished(file, hash, $.parseJSON(xhr.responseText))
             next_file()
 
       file = @processQ[i]
@@ -111,8 +119,8 @@
         @opts.error(@errors.tooLarge)
         next_file()
         return false
-      if @opts.file_url
-        send(file, @opts.file_url)
+      if @opts.chunk == false
+        send(file, @opts.url)
       else
         chunk_size = 1024 * @opts.chunk_size
         chunks = Math.ceil(file.size / chunk_size)
@@ -121,7 +129,7 @@
 
     drop: (e) =>
       @docLeave(e)
-      #@opts.drop(e)
+      @opts.drop(e)
       @files = e.originalEvent.dataTransfer.files
       unless @files
         @opts.error(@errors.notSupported)
@@ -131,6 +139,8 @@
       for i in [0..@opts.queue_size]
         file = @todoQ.pop()
         if file
+          hash = (@hash(file.name) + file.size).toString()
+          @opts.uploadStarted(file, hash)
           @processQ.push(file)
           @process(i)
       e.preventDefault()
