@@ -30,11 +30,9 @@
     error: (err) -> alert err,
     fileAdded: ->,
     uploadStarted: ->,
+    chunkFinished: ->,
     uploadFinished: ->,
     progressUpdated: ->
-  errors =
-    notSupported: 'BrowserNotSupported',
-    tooLarge: 'FileTooLarge'
 
   class Plugin
     constructor: (@element, options) ->
@@ -43,27 +41,67 @@
       @_defaults = defaults
       @_name = pluginName
 
+      @errors =
+        notSupported: 'BrowserNotSupported',
+        tooLarge: 'FileTooLarge'
+
       @timer
+      @todoQ
+      @processingQ
+      @doneQ
+      @files
+      @encoded_file = ''
 
       @init()
 
     init: ->
-      $(@element).on('drop', drop).on('dragenter', @dragEnter).on('dragover', @dragOver).on('dragleave', @dragLeave)
+      $(@element).on('drop', @drop).on('dragenter', @dragEnter).on('dragover', @dragOver).on('dragleave', @dragLeave)
       $(document).on('drop', @docDrop).on('dragenter', @docEnter).on('dragover', @docOver).on('dragleave', @docLeave)
 
-      drop = (e) ->
-        @opts.drop(e)
-        files = e.dataTransfer.files
-        unless files
-          @opts.error(errors.notSupported)
-          false
-        files_count = files.length
-        upload()
-        e.preventDefault()
-        false
+    upload: ->
 
-      upload = ->
-        console.log(files)
+    drop: (e) =>
+      #@opts.drop(e)
+      @files = e.originalEvent.dataTransfer.files
+      unless @files
+        @opts.error(@errors.notSupported)
+        false
+      @upload()
+      e.preventDefault()
+      false
+
+    encode: (file_name, file_data, mime_type) =>
+      dashes = '--'
+      crlf = '\r\n'
+      boundary = '------multipartformboundary' + (new Date).getTime()
+      for name, value in @opts.data
+        @encoded_file += dashes
+        @encoded_file += boundary
+        @encoded_file += crlf
+        @encoded_file += 'Content-Disposition: form-data; name=' + name + '"'
+        @encoded_file += crlf
+        @encoded_file += crlf
+        @encoded_file += value
+        @encoded_file += crlf
+
+      @encoded_file += dashes
+      @encoded_file += boundary
+      @encoded_file += crlf
+      @encoded_file += 'Content-Disposition: form-data; name="' + @opts.param_name + '"'
+      @encoded_file += '; filename="' + file_name + '"'
+      @encoded_file += crlf
+
+      @encoded_file += 'Content-Type: ' + mime_type
+      @encoded_file += crlf
+      @encoded_file += crlf
+
+      @encoded_file += file_data
+      @encoded_file += crlf
+
+      @encoded_file += dashes
+      @encoded_file += boundary
+      @encoded_file += dashes
+      @encoded_file += crlf
 
     dragEnter: (e) =>
       clearTimeout(@timer)

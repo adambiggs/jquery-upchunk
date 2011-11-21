@@ -48,6 +48,7 @@
         this.dragLeave = __bind(this.dragLeave, this);
         this.dragOver = __bind(this.dragOver, this);
         this.dragEnter = __bind(this.dragEnter, this);
+        this.drop = __bind(this.drop, this);
         this.opts = $.extend({}, defaults, options);
         this._defaults = defaults;
         this._name = pluginName;
@@ -56,25 +57,27 @@
       }
 
       Plugin.prototype.init = function() {
-        var drop, upload;
-        $(this.element).on('drop', drop).on('dragenter', this.dragEnter).on('dragover', this.dragOver).on('dragleave', this.dragLeave);
-        $(document).on('drop', this.docDrop).on('dragenter', this.docEnter).on('dragover', this.docOver).on('dragleave', this.docLeave);
-        drop = function(e) {
-          var files, files_count;
-          this.opts.drop(e);
-          files = e.dataTransfer.files;
-          if (!files) {
-            this.opts.error(errors.notSupported);
-            false;
-          }
-          files_count = files.length;
-          upload();
-          e.preventDefault();
-          return false;
-        };
-        return upload = function() {
-          return console.log(files);
-        };
+        $(this.element).on('drop', this.drop).on('dragenter', this.dragEnter).on('dragover', this.dragOver).on('dragleave', this.dragLeave);
+        return $(document).on('drop', this.docDrop).on('dragenter', this.docEnter).on('dragover', this.docOver).on('dragleave', this.docLeave);
+      };
+
+      Plugin.prototype.upload = function() {
+        console.log(files);
+        return console.log(errors);
+      };
+
+      Plugin.prototype.drop = function(e) {
+        var files, files_count;
+        files = e.originalEvent.dataTransfer.files;
+        if (!files) {
+          this.opts.error(errors.notSupported);
+          false;
+        }
+        files_count = files.length;
+        console.log(errors);
+        this.upload();
+        e.preventDefault();
+        return false;
       };
 
       Plugin.prototype.dragEnter = function(e) {
