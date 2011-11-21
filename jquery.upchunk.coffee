@@ -70,6 +70,7 @@
           percentage = Math.floor(((e.loaded * 100) / file.size) + (n - 1) * pchunk)
         else
           percentage = Math.floor(e.loaded * 100 / e.total)
+        percentage = 100 if percentage > 100
         if percentage > old
           old = percentage
           hash = (@hash(file.name) + file.size).toString()
@@ -82,7 +83,8 @@
           @processQ.splice(i, 1, next)
           @process(i)
         else
-          @opts.afterAll()
+          @processQ.splice(i, 1)
+          @opts.afterAll() if @processQ.length == 0
 
       next_chunk = =>
         start = chunk_size * n
@@ -114,7 +116,12 @@
           if chunks? && n < chunks
             next_chunk()
           else
-            @opts.uploadFinished(file, hash, $.parseJSON(xhr.responseText))
+            try
+              response = $.parseJSON(xhr.responseText)
+            if response?
+              @opts.uploadFinished(file, hash, response)
+            else
+              @opts.uploadFinished(file, hash)
             next_file()
 
       file = @processQ[i]

@@ -89,6 +89,7 @@
           } else {
             percentage = Math.floor(e.loaded * 100 / e.total);
           }
+          if (percentage > 100) percentage = 100;
           if (percentage > old) {
             old = percentage;
             hash = (_this.hash(file.name) + file.size).toString();
@@ -103,7 +104,8 @@
             _this.processQ.splice(i, 1, next);
             return _this.process(i);
           } else {
-            return _this.opts.afterAll();
+            _this.processQ.splice(i, 1);
+            if (_this.processQ.length === 0) return _this.opts.afterAll();
           }
         };
         next_chunk = function() {
@@ -141,10 +143,18 @@
           xhr.upload.addEventListener('progress', progress, false);
           xhr.send(fd);
           return xhr.onload = function() {
+            var response;
             if ((typeof chunks !== "undefined" && chunks !== null) && n < chunks) {
               return next_chunk();
             } else {
-              _this.opts.uploadFinished(file, hash, $.parseJSON(xhr.responseText));
+              try {
+                response = $.parseJSON(xhr.responseText);
+              } catch (_error) {}
+              if (response != null) {
+                _this.opts.uploadFinished(file, hash, response);
+              } else {
+                _this.opts.uploadFinished(file, hash);
+              }
               return next_file();
             }
           };
