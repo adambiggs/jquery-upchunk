@@ -8,14 +8,16 @@
     var Plugin, defaults, pluginName;
     pluginName = 'upchunk';
     defaults = {
-      url: '',
+      chunk_url: '',
+      file_url: '',
       fallback_id: '',
       chunk_size: 1024,
-      refresh_rate: 1000,
-      param_name: 'file',
+      file_param: 'file',
+      name_param: 'file_name',
       max_file_size: 0,
       queue_size: 2,
       data: {},
+      refresh_rate: 1000,
       drop: function() {},
       dragEnter: function() {},
       dragOver: function() {},
@@ -46,7 +48,6 @@
         this.dragLeave = __bind(this.dragLeave, this);
         this.dragOver = __bind(this.dragOver, this);
         this.dragEnter = __bind(this.dragEnter, this);
-        this.encode = __bind(this.encode, this);
         this.drop = __bind(this.drop, this);
         this.process = __bind(this.process, this);
         this.opts = $.extend({}, defaults, options);
@@ -55,6 +56,18 @@
         this.errors = {
           notSupported: 'BrowserNotSupported',
           tooLarge: 'FileTooLarge'
+        };
+        this.hash = function(s) {
+          var char, hash, i, len, test;
+          hash = 0;
+          len = s.length;
+          if (len === 0) return hash;
+          for (i = 0; 0 <= len ? i <= len : i >= len; 0 <= len ? i++ : i--) {
+            char = s.charCodeAt(i);
+            test = ((hash << 5) - hash) + char;
+            if (!isNaN(test)) hash = test & test;
+          }
+          return Math.abs(hash);
         };
         this.init();
       }
@@ -65,7 +78,7 @@
       };
 
       Plugin.prototype.process = function(i) {
-        var chunk_size, chunks, file, n, next_chunk, next_file,
+        var chunk_size, chunks, file, n, next_chunk, next_file, send,
           _this = this;
         next_file = function() {
           var next;
@@ -78,7 +91,7 @@
           }
         };
         next_chunk = function() {
-          var chunk, end, fd, start, xhr;
+          var chunk, end, start;
           start = chunk_size * n;
           end = chunk_size * (n + 1);
           n += 1;
@@ -87,26 +100,58 @@
           } else {
             chunk = file.webkitSlice(start, end);
           }
+          return send(chunk, _this.opts.chunk_url);
+        };
+        send = function(chunk, url) {
+          var fd, name, value, xhr, _ref;
           fd = new FormData;
-          fd.append(_this.opts.param_name, file);
+          fd.append(_this.opts.file_param, chunk);
+          fd.append(_this.opts.name_param, file.name);
+          fd.append('hash', (_this.hash(file.name) + file.size).toString());
+          _ref = _this.opts.data;
+          for (name in _ref) {
+            value = _ref[name];
+            fd.append(name, value);
+          }
+          if (n === chunks) {
+            fd.append('last', true);
+          } else {
+            fd.append('last', false);
+          }
           xhr = new XMLHttpRequest;
-          xhr.open('POST', _this.opts.url, true);
-          return xhr.send(fd);
+          xhr.open('POST', url, true);
+          xhr.send(fd);
+          return xhr.onload = function() {
+            if (typeof chunks !== "undefined" && chunks !== null) {
+              if (n < chunks) {
+                return next_chunk();
+              } else {
+                return next_file();
+              }
+            } else {
+              return next_file();
+            }
+          };
         };
         file = this.processQ[i];
         if (this.opts.max_file_size > 0 && file.size > 1048576 * this.opts.max_file_size) {
           this.opts.error(this.errors.tooLarge);
-          next();
+          next_file();
           return false;
         }
-        chunk_size = 1024 * this.opts.chunk_size;
-        chunks = Math.ceil(file.size / chunk_size);
-        n = 0;
-        return next_chunk();
+        if (this.opts.file_url) {
+          return send(file, this.opts.file_url);
+        } else {
+          chunk_size = 1024 * this.opts.chunk_size;
+          chunks = Math.ceil(file.size / chunk_size);
+          n = 0;
+          return next_chunk();
+        }
       };
 
       Plugin.prototype.drop = function(e) {
         var file, i, _i, _len, _ref, _ref2;
+        this.docLeave(e);
         this.files = e.originalEvent.dataTransfer.files;
         if (!this.files) {
           this.opts.error(this.errors.notSupported);
@@ -128,41 +173,6 @@
         }
         e.preventDefault();
         return false;
-      };
-
-      Plugin.prototype.encode = function(file_name, file_data, mime_type) {
-        var boundary, crlf, dashes, name, value, _len, _ref;
-        dashes = '--';
-        crlf = '\r\n';
-        boundary = '------multipartformboundary' + (new Date).getTime();
-        this.encoded_file = '';
-        _ref = this.opts.data;
-        for (value = 0, _len = _ref.length; value < _len; value++) {
-          name = _ref[value];
-          this.encoded_file += dashes;
-          this.encoded_file += boundary;
-          this.encoded_file += crlf;
-          this.encoded_file += 'Content-Disposition: form-data; name=' + name + '"';
-          this.encoded_file += crlf;
-          this.encoded_file += crlf;
-          this.encoded_file += value;
-          this.encoded_file += crlf;
-        }
-        this.encoded_file += dashes;
-        this.encoded_file += boundary;
-        this.encoded_file += crlf;
-        this.encoded_file += 'Content-Disposition: form-data; name="' + this.opts.param_name + '"';
-        this.encoded_file += '; filename="' + file_name + '"';
-        this.encoded_file += crlf;
-        this.encoded_file += 'Content-Type: ' + mime_type;
-        this.encoded_file += crlf;
-        this.encoded_file += crlf;
-        this.encoded_file += file_data;
-        this.encoded_file += crlf;
-        this.encoded_file += dashes;
-        this.encoded_file += boundary;
-        this.encoded_file += dashes;
-        return this.encoded_file += crlf;
       };
 
       Plugin.prototype.dragEnter = function(e) {

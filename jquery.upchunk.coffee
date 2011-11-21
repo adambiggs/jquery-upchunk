@@ -10,14 +10,16 @@
 
   pluginName = 'upchunk'
   defaults =
-    url: '',
+    chunk_url: '',
+    file_url: '',
     fallback_id: '',
     chunk_size: 1024,
-    refresh_rate: 1000,
-    param_name: 'file',
+    file_param: 'file',
+    name_param: 'file_name',
     max_file_size: 0,
     queue_size: 2,
     data: {},
+    refresh_rate: 1000,
     drop: ->,
     dragEnter: ->,
     dragOver: ->,
@@ -46,6 +48,17 @@
         notSupported: 'BrowserNotSupported',
         tooLarge: 'FileTooLarge'
 
+      @hash = (s) ->
+        hash = 0
+        len = s.length
+        return hash if len == 0
+        for i in [0..len]
+          char = s.charCodeAt(i)
+          test = ((hash<<5)-hash)+char
+          hash = test & test unless isNaN(test)
+        Math.abs(hash)
+
+
       @init()
 
     init: ->
@@ -69,28 +82,45 @@
           chunk = file.mozSlice(start, end)
         else
           chunk = file.webkitSlice(start, end)
+        send(chunk, @opts.chunk_url)
+
+      send = (chunk, url) =>
         fd = new FormData
-        fd.append(@opts.param_name, chunk)
+        fd.append(@opts.file_param, chunk)
+        fd.append(@opts.name_param, file.name)
+        fd.append('hash', (@hash(file.name) + file.size).toString())
+        fd.append(name, value) for name, value of @opts.data
+        if n == chunks
+          fd.append('last', true)
+        else
+          fd.append('last', false)
         xhr = new XMLHttpRequest
-        xhr.open('POST', @opts.url, true)
+        xhr.open('POST', url, true)
         xhr.send(fd)
         xhr.onload = ->
-          if n <= chunks
-            next_chunk()
+          if chunks?
+            if n < chunks
+              next_chunk()
+            else
+              next_file()
           else
             next_file()
 
       file = @processQ[i]
-      if @opts.max_file_size > 0 and file.size > 1048576 * @opts.max_file_size
+      if @opts.max_file_size > 0 && file.size > 1048576 * @opts.max_file_size
         @opts.error(@errors.tooLarge)
-        next()
+        next_file()
         return false
-      chunk_size = 1024 * @opts.chunk_size
-      chunks = Math.ceil(file.size / chunk_size)
-      n = 0
-      next_chunk()
+      if @opts.file_url
+        send(file, @opts.file_url)
+      else
+        chunk_size = 1024 * @opts.chunk_size
+        chunks = Math.ceil(file.size / chunk_size)
+        n = 0
+        next_chunk()
 
     drop: (e) =>
+      @docLeave(e)
       #@opts.drop(e)
       @files = e.originalEvent.dataTransfer.files
       unless @files
@@ -105,40 +135,6 @@
           @process(i)
       e.preventDefault()
       false
-
-    encode: (file_name, file_data, mime_type) =>
-      dashes = '--'
-      crlf = '\r\n'
-      boundary = '------multipartformboundary' + (new Date).getTime()
-      @encoded_file = ''
-      for name, value in @opts.data
-        @encoded_file += dashes
-        @encoded_file += boundary
-        @encoded_file += crlf
-        @encoded_file += 'Content-Disposition: form-data; name=' + name + '"'
-        @encoded_file += crlf
-        @encoded_file += crlf
-        @encoded_file += value
-        @encoded_file += crlf
-
-      @encoded_file += dashes
-      @encoded_file += boundary
-      @encoded_file += crlf
-      @encoded_file += 'Content-Disposition: form-data; name="' + @opts.param_name + '"'
-      @encoded_file += '; filename="' + file_name + '"'
-      @encoded_file += crlf
-
-      @encoded_file += 'Content-Type: ' + mime_type
-      @encoded_file += crlf
-      @encoded_file += crlf
-
-      @encoded_file += file_data
-      @encoded_file += crlf
-
-      @encoded_file += dashes
-      @encoded_file += boundary
-      @encoded_file += dashes
-      @encoded_file += crlf
 
     dragEnter: (e) =>
       clearTimeout(@timer)
