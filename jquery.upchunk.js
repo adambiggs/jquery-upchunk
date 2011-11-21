@@ -83,8 +83,12 @@
         progress = function(e) {
           var hash, old, pchunk, percentage;
           if (!(typeof old !== "undefined" && old !== null)) old = 0;
-          pchunk = chunk_size * 100 / file.size;
-          percentage = Math.floor(((e.loaded * 100) / file.size) + (n - 1) * pchunk);
+          if (typeof n !== "undefined" && n !== null) {
+            pchunk = chunk_size * 100 / file.size;
+            percentage = Math.floor(((e.loaded * 100) / file.size) + (n - 1) * pchunk);
+          } else {
+            percentage = Math.floor(e.loaded * 100 / e.total);
+          }
           if (percentage > old) {
             old = percentage;
             hash = (_this.hash(file.name) + file.size).toString();
