@@ -10,8 +10,9 @@
 
   pluginName = 'upchunk'
   defaults =
-    fallback_id: '',
     url: '',
+    fallback_id: '',
+    chunk_size: 1024,
     refresh_rate: 1000,
     param_name: 'file',
     max_file_size: 0,
@@ -45,20 +46,49 @@
         notSupported: 'BrowserNotSupported',
         tooLarge: 'FileTooLarge'
 
-      @timer
-      @todoQ
-      @processingQ
-      @doneQ
-      @files
-      @encoded_file = ''
-
       @init()
 
     init: ->
       $(@element).on('drop', @drop).on('dragenter', @dragEnter).on('dragover', @dragOver).on('dragleave', @dragLeave)
       $(document).on('drop', @docDrop).on('dragenter', @docEnter).on('dragover', @docOver).on('dragleave', @docLeave)
 
-    upload: ->
+    process: (i) =>
+      next_file = =>
+        next = @todoQ.pop()
+        if next
+          @processQ.splice(i, 1, next)
+          @process(i)
+        else
+          #end
+
+      next_chunk = =>
+        start = chunk_size * n
+        end = chunk_size * (n + 1)
+        n += 1
+        if file.mozSlice
+          chunk = file.mozSlice(start, end)
+        else
+          chunk = file.webkitSlice(start, end)
+        fd = new FormData
+        fd.append(@opts.param_name, chunk)
+        xhr = new XMLHttpRequest
+        xhr.open('POST', @opts.url, true)
+        xhr.send(fd)
+        xhr.onload = ->
+          if n <= chunks
+            next_chunk()
+          else
+            next_file()
+
+      file = @processQ[i]
+      if @opts.max_file_size > 0 and file.size > 1048576 * @opts.max_file_size
+        @opts.error(@errors.tooLarge)
+        next()
+        return false
+      chunk_size = 1024 * @opts.chunk_size
+      chunks = Math.ceil(file.size / chunk_size)
+      n = 0
+      next_chunk()
 
     drop: (e) =>
       #@opts.drop(e)
@@ -66,7 +96,13 @@
       unless @files
         @opts.error(@errors.notSupported)
         false
-      @upload()
+      @processQ = [] ; @todoQ = []
+      @todoQ.push(file) for file in @files
+      for i in [0..@opts.queue_size]
+        file = @todoQ.pop()
+        if file
+          @processQ.push(file)
+          @process(i)
       e.preventDefault()
       false
 
@@ -74,6 +110,7 @@
       dashes = '--'
       crlf = '\r\n'
       boundary = '------multipartformboundary' + (new Date).getTime()
+      @encoded_file = ''
       for name, value in @opts.data
         @encoded_file += dashes
         @encoded_file += boundary
