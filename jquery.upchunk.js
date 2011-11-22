@@ -97,10 +97,11 @@
           }
         };
         next_file = function() {
-          var next;
+          var next, next_hash;
           next = _this.todoQ.pop();
           if (next) {
-            _this.opts.uploadStarted(next, hash);
+            next_hash = (_this.hash(next.name) + next.size).toString();
+            _this.opts.uploadStarted(next, next_hash);
             _this.processQ.splice(i, 1, next);
             return _this.process(i);
           } else {

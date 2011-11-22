@@ -79,7 +79,8 @@
       next_file = =>
         next = @todoQ.pop()
         if next
-          @opts.uploadStarted(next, hash)
+          next_hash = (@hash(next.name) + next.size).toString()
+          @opts.uploadStarted(next, next_hash)
           @processQ.splice(i, 1, next)
           @process(i)
         else
