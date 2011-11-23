@@ -11,7 +11,7 @@ Features
 Usage
 -----
 
-Values seen below are defaults, empty symbolizes an empty function.
+Values seen below are defaults.
 
 ```javascript
 
