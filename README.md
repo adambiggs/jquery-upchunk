@@ -41,6 +41,8 @@ $('#dropzone').upchunk({
 
 ```
 
-Contributions
+Notes & Contributions
 -------------
-[jquery-filedrop](http://github.com/weixiyen/jquery-filedrop), the plugin I modeled this after. Thanks weixiyen!
+_note:_ This is a fairly new plugin. If you experience any issues please don't hesitate to open up an issue and I'll resolve it asap :).
+
+_contribution:_ [jquery-filedrop](http://github.com/weixiyen/jquery-filedrop), the plugin I modeled this after. Thanks weixiyen!
