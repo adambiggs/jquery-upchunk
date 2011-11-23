@@ -117,8 +117,7 @@
           if chunks? && n < chunks
             next_chunk()
           else
-            try
-              response = $.parseJSON(xhr.responseText)
+            try response = $.parseJSON(xhr.responseText)
             if response?
               @opts.uploadFinished(file, hash, response)
             else
