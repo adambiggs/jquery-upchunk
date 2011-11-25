@@ -73,8 +73,37 @@
       }
 
       Plugin.prototype.init = function() {
+        var _this = this;
         $(this.element).on('drop', this.drop).on('dragenter', this.dragEnter).on('dragover', this.dragOver).on('dragleave', this.dragLeave);
-        return $(document).on('drop', this.docDrop).on('dragenter', this.docEnter).on('dragover', this.docOver).on('dragleave', this.docLeave);
+        $(document).on('drop', this.docDrop).on('dragenter', this.docEnter).on('dragover', this.docOver).on('dragleave', this.docLeave);
+        return $('#' + this.opts.fallback_id).change(function(e) {
+          var file, hash, i, _i, _len, _ref, _ref2;
+          _this.docLeave(e);
+          _this.opts.drop(e);
+          _this.files = e.target.files;
+          if (!_this.files) {
+            _this.opts.error(_this.errors.notSupported);
+            false;
+          }
+          _this.processQ = [];
+          _this.todoQ = [];
+          _ref = _this.files;
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            file = _ref[_i];
+            _this.todoQ.push(file);
+          }
+          for (i = 0, _ref2 = _this.opts.queue_size; 0 <= _ref2 ? i <= _ref2 : i >= _ref2; 0 <= _ref2 ? i++ : i--) {
+            file = _this.todoQ.pop();
+            if (file) {
+              hash = (_this.hash(file.name) + file.size).toString();
+              _this.opts.uploadStarted(file, hash);
+              _this.processQ.push(file);
+              _this.process(i);
+            }
+          }
+          e.preventDefault();
+          return false;
+        });
       };
 
       Plugin.prototype.process = function(i) {

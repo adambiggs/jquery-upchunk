@@ -62,6 +62,26 @@
       $(@element).on('drop', @drop).on('dragenter', @dragEnter).on('dragover', @dragOver).on('dragleave', @dragLeave)
       $(document).on('drop', @docDrop).on('dragenter', @docEnter).on('dragover', @docOver).on('dragleave', @docLeave)
 
+      $('#' + @opts.fallback_id).change( (e) =>
+        @docLeave(e)
+        @opts.drop(e)
+        @files = e.target.files
+        unless @files
+          @opts.error(@errors.notSupported)
+          false
+        @processQ = [] ; @todoQ = []
+        @todoQ.push(file) for file in @files
+        for i in [0..@opts.queue_size]
+          file = @todoQ.pop()
+          if file
+            hash = (@hash(file.name) + file.size).toString()
+            @opts.uploadStarted(file, hash)
+            @processQ.push(file)
+            @process(i)
+        e.preventDefault()
+        false
+      )
+
     process: (i) =>
       progress = (e) =>
         old = 0 if !old?
