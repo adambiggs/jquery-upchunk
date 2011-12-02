@@ -161,7 +161,11 @@
           _ref = _this.opts.data;
           for (name in _ref) {
             value = _ref[name];
-            fd.append(name, value);
+            if (typeof value === 'function') {
+              fd.append(name, value());
+            } else {
+              fd.append(name, value);
+            }
           }
           if (n === chunks) {
             fd.append('last', true);

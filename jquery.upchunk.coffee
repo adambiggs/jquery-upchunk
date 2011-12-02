@@ -124,7 +124,11 @@
         fd.append(@opts.file_param, chunk)
         fd.append(@opts.name_param, @opts.rename(file.name))
         fd.append('hash', hash)
-        fd.append(name, value) for name, value of @opts.data
+        for name, value of @opts.data
+          if typeof value == 'function'
+            fd.append(name, value())
+          else
+            fd.append(name, value)
         if n == chunks
           fd.append('last', true)
         else
