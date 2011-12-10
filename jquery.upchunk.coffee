@@ -129,6 +129,10 @@
             fd.append(name, value())
           else
             fd.append(name, value)
+        if n == 1
+          fd.append('first', true)
+        else
+          fd.append('first', false)
         if n == chunks
           fd.append('last', true)
         else
