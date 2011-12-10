@@ -17,8 +17,8 @@ Values seen below are defaults.
 
 $('#dropzone').upchunk({
   url: '',                                          // the url the file (or chunks) will be sent to
-                                                      // there will be an additional 'last' parameter which specifies
-                                                      // whether the chunk sent is the last one for that file
+                                                      // there will be two additional parameters- 'last' and 'first'
+                                                      // which specify whether the chunk sent is the first and/or last, respectively
   chunk: false,                                     // whether or not files will be sent to the server in chunks
   chunk_size: 1024,                                 // the size of each chunk
   fallback_id: '',                                  // an identifier of a standard file input field to optionally interface with the plugin
