@@ -113,8 +113,13 @@
         n += 1
         if file.mozSlice
           chunk = file.mozSlice(start, end)
-        else
+        else if file.webkitSlice
           chunk = file.webkitSlice(start, end)
+        else if file.slice
+          chunk = file.slice(start, end)
+        else
+          chunk = file
+          chunks = 1
         send(chunk, @opts.url)
 
       send = (chunk, url) =>

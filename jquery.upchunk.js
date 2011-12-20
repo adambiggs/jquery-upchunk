@@ -139,14 +139,19 @@
           }
         };
         next_chunk = function() {
-          var chunk, end, start;
+          var chunk, chunks, end, start;
           start = chunk_size * n;
           end = chunk_size * (n + 1);
           n += 1;
           if (file.mozSlice) {
             chunk = file.mozSlice(start, end);
-          } else {
+          } else if (file.webkitSlice) {
             chunk = file.webkitSlice(start, end);
+          } else if (file.slice) {
+            chunk = file.slice(start, end);
+          } else {
+            chunk = file;
+            chunks = 1;
           }
           return send(chunk, _this.opts.url);
         };
