@@ -157,7 +157,7 @@
               @opts.uploadFinished(file, hash, response)
             else
               @opts.uploadFinished(file, hash)
-            next_file()
+            next_file() unless @opts.processNextImmediately
 
       file = @processQ[i]
       if @opts.max_file_size > 0 && file.size > 1048576 * @opts.max_file_size

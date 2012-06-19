@@ -222,7 +222,9 @@
               } else {
                 _this.opts.uploadFinished(file, hash);
               }
-              return next_file();
+              if (!_this.opts.processNextImmediately) {
+                return next_file();
+              }
             }
           };
         };
