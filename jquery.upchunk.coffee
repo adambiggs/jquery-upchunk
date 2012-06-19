@@ -18,6 +18,7 @@
     name_param: 'file_name',
     max_file_size: 0,
     queue_size: 2,
+    processNextImmediately: false,
     data: {},
     drop: ->,
     dragEnter: ->,
@@ -83,6 +84,17 @@
       )
 
     process: (i) =>
+      next_file = =>
+        next = @todoQ.pop()
+        if next
+          next_hash = (@hash(next.name) + next.size).toString()
+          @opts.uploadStarted(next, next_hash)
+          @processQ.splice(i, 1, next)
+          @process(i)
+        else
+          @processQ.splice(i, 1)
+          @opts.afterAll() if @processQ.length == 0
+
       progress = (e) =>
         old = 0 if !old?
         if n?
@@ -95,28 +107,18 @@
           old = percentage
           hash = (@hash(file.name) + file.size).toString()
           @opts.progressUpdated(file, hash, percentage)
-
-      next_file = =>
-        next = @todoQ.pop()
-        if next
-          next_hash = (@hash(next.name) + next.size).toString()
-          @opts.uploadStarted(next, next_hash)
-          @processQ.splice(i, 1, next)
-          @process(i)
-        else
-          @processQ.splice(i, 1)
-          @opts.afterAll() if @processQ.length == 0
+        next_file() if percentage == 100 && @opts.processNextImmediately
 
       next_chunk = =>
         start = chunk_size * n
         end = chunk_size * (n + 1)
         n += 1
-        if file.mozSlice
+        if file.slice
+          chunk = file.slice(start, end)
+        else if file.mozSlice
           chunk = file.mozSlice(start, end)
         else if file.webkitSlice
           chunk = file.webkitSlice(start, end)
-        else if file.slice
-          chunk = file.slice(start, end)
         else
           chunk = file
           chunks = 1

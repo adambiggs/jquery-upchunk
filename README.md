@@ -26,6 +26,7 @@ $('#dropzone').upchunk({
   name_param: 'file_name',                          // the name of the parameter the file name will have when sent to the server
   max_file_size: 0,                                 // the maximum size of each uploaded file, 0 for infinite
   queue_size: 2,                                    // the maximum amount of files to upload to the server at once
+  processNextImmediately: false,                    // whether to start processing the next file immediately once progress reaches 100% instead of waiting for the server's response
   data: {},                                         // additional parameters to be sent to the server
   // functions that will be executed...
   drop: function(e){},                              // when the files are dropped
