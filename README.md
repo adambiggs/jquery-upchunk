@@ -36,7 +36,7 @@ $('#dropzone').upchunk({
   docLeave: function(e){},                          // when dragged files leave the browser window
   beforeEach: function(){},                         // before each file begins uploading
   afterAll: function(){},                           // after all files are finished uploading
-  rename: function(s) {return s},                   // to rename the file before being sent to the server
+  rename: function(file) {return file.name},                   // to rename the file before being sent to the server
   error: function(err) { alert(err) },              // in response to errors; err can be one of the following: ['BrowserNotSupported', 'FileTooLarge']
   uploadStarted: function(file, hash){},            // when an upload starts
   uploadFinished: function(file, hash, response){}, // when an upload finishes
