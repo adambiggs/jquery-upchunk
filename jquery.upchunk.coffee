@@ -29,7 +29,7 @@
     docLeave: ->,
     beforeEach: ->,
     afterAll: ->
-    rename: (s) -> s,
+    rename: (file) -> file.name,
     error: (err) -> alert err,
     fileAdded: ->,
     uploadStarted: ->,
@@ -129,7 +129,7 @@
         @opts.beforeEach()
         fd = new FormData
         fd.append(@opts.file_param, chunk)
-        fd.append(@opts.name_param, @opts.rename(file.name))
+        fd.append(@opts.name_param, @opts.rename(file))
         fd.append('hash', hash)
         for name, value of @opts.data
           if typeof value == 'function'
