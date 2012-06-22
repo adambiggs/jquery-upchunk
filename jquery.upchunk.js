@@ -27,8 +27,8 @@
       docLeave: function() {},
       beforeEach: function() {},
       afterAll: function() {},
-      rename: function(s) {
-        return s;
+      rename: function(file) {
+        return file.name;
       },
       error: function(err) {
         return alert(err);
@@ -132,10 +132,7 @@
             _this.processQ.splice(i, 1, next);
             return _this.process(i);
           } else {
-            _this.processQ.splice(i, 1);
-            if (_this.processQ.length === 0) {
-              return _this.opts.afterAll();
-            }
+            return _this.processQ.splice(i, 1, false);
           }
         };
         progress = function(e) {
@@ -184,7 +181,7 @@
           _this.opts.beforeEach();
           fd = new FormData;
           fd.append(_this.opts.file_param, chunk);
-          fd.append(_this.opts.name_param, _this.opts.rename(file.name));
+          fd.append(_this.opts.name_param, _this.opts.rename(file));
           fd.append('hash', hash);
           _ref = _this.opts.data;
           for (name in _ref) {
@@ -210,9 +207,9 @@
           xhr.upload.addEventListener('progress', progress, false);
           xhr.send(fd);
           return xhr.onload = function() {
-            var response;
+            var f, fin, response;
             if ((typeof chunks !== "undefined" && chunks !== null) && n < chunks) {
-              return next_chunk();
+              next_chunk();
             } else {
               try {
                 response = $.parseJSON(xhr.responseText);
@@ -223,8 +220,23 @@
                 _this.opts.uploadFinished(file, hash);
               }
               if (!_this.opts.processNextImmediately) {
-                return next_file();
+                next_file();
               }
+            }
+            fin = (function() {
+              var _i, _len, _ref1, _results;
+              _ref1 = this.processQ;
+              _results = [];
+              for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                f = _ref1[_i];
+                if (f) {
+                  _results.push(f);
+                }
+              }
+              return _results;
+            }).call(_this);
+            if (fin.length === 0) {
+              return _this.opts.afterAll();
             }
           };
         };

@@ -92,8 +92,7 @@
           @processQ.splice(i, 1, next)
           @process(i)
         else
-          @processQ.splice(i, 1)
-          @opts.afterAll() if @processQ.length == 0
+          @processQ.splice(i, 1, false)
 
       progress = (e) =>
         old = 0 if !old?
@@ -158,6 +157,8 @@
             else
               @opts.uploadFinished(file, hash)
             next_file() unless @opts.processNextImmediately
+          fin = (f for f in @processQ when f)
+          @opts.afterAll() if fin.length == 0
 
       file = @processQ[i]
       if @opts.max_file_size > 0 && file.size > 1048576 * @opts.max_file_size
