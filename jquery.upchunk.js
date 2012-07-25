@@ -65,7 +65,8 @@
         this._name = pluginName;
         this.errors = {
           notSupported: 'BrowserNotSupported',
-          tooLarge: 'FileTooLarge'
+          tooLarge: 'FileTooLarge',
+          uploadHalted: 'UploadHalted'
         };
         this.hash = function(s) {
           var char, hash, i, len, test, _i;
@@ -178,7 +179,11 @@
         send = function(chunk, url) {
           var fd, hash, name, value, xhr, _ref;
           hash = (_this.hash(file.name) + file.size).toString();
-          _this.opts.beforeEach();
+          if (_this.opts.beforeEach() === false) {
+            _this.opts.error(_this.errors.uploadHalted);
+            next_file();
+            return false;
+          }
           fd = new FormData;
           fd.append(_this.opts.file_param, chunk);
           fd.append(_this.opts.name_param, _this.opts.rename(file));

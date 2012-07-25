@@ -34,10 +34,10 @@ $('#dropzone').upchunk({
   dragLeave: function(e){},                         // when dragged files leave the dropzone
   docEnter: function(e){},                          // when dragged files enter the browser window
   docLeave: function(e){},                          // when dragged files leave the browser window
-  beforeEach: function(){},                         // before each file begins uploading
+  beforeEach: function(){},                         // before each file begins uploading, will throw 'UploadHalted' error if beforeEach returns false
   afterAll: function(){},                           // after all files are finished uploading
   rename: function(file) {return file.name},                   // to rename the file before being sent to the server
-  error: function(err) { alert(err) },              // in response to errors; err can be one of the following: ['BrowserNotSupported', 'FileTooLarge']
+  error: function(err) { alert(err) },              // in response to errors; err can be one of the following: ['BrowserNotSupported', 'FileTooLarge', 'UploadHalted']
   uploadStarted: function(file, hash){},            // when an upload starts
   uploadFinished: function(file, hash, response){}, // when an upload finishes
   progressUpdated: function(file, hash, progress){} // each percentage update (soon to incorporate a refresh_rate parameter instead)
