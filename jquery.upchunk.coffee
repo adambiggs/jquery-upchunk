@@ -46,6 +46,7 @@
       @errors =
         notSupported: 'BrowserNotSupported',
         tooLarge: 'FileTooLarge'
+        uploadHalted: 'UploadHalted'
 
       @hash = (s) ->
         hash = 0
@@ -125,7 +126,10 @@
 
       send = (chunk, url) =>
         hash = (@hash(file.name) + file.size).toString()
-        @opts.beforeEach()
+        if @opts.beforeEach() is false
+          @opts.error(@errors.uploadHalted)
+          next_file()
+          return false
         fd = new FormData
         fd.append(@opts.file_param, chunk)
         fd.append(@opts.name_param, @opts.rename(file))
