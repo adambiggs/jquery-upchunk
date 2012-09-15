@@ -16,6 +16,7 @@
     chunk_size: 1024,
     file_param: 'file',
     name_param: 'file_name',
+    headers: {},
     max_file_size: 0,
     queue_size: 2,
     processNextImmediately: false,
@@ -74,7 +75,7 @@
         @processQ = [] ; @todoQ = []
         @todoQ.push(file) for file in @files
         for i in [0..@opts.queue_size]
-          file = @todoQ.pop()
+          file = @todoQ.shift()
           if file
             hash = (@hash(file.name) + file.size).toString()
             @opts.uploadStarted(file, hash)
@@ -86,7 +87,7 @@
 
     process: (i) =>
       next_file = =>
-        next = @todoQ.pop()
+        next = @todoQ.shift()
         if next
           next_hash = (@hash(next.name) + next.size).toString()
           @opts.uploadStarted(next, next_hash)
@@ -149,6 +150,8 @@
           fd.append('last', false)
         xhr = new XMLHttpRequest
         xhr.open('POST', url, true)
+        for key,value of @opts.headers
+          xhr.setRequestHeader(key, value)
         xhr.upload.addEventListener('progress', progress, false)
         xhr.send(fd)
         xhr.onload = =>
@@ -187,7 +190,7 @@
       @processQ = [] ; @todoQ = []
       @todoQ.push(file) for file in @files
       for i in [0..@opts.queue_size]
-        file = @todoQ.pop()
+        file = @todoQ.shift()
         if file
           hash = (@hash(file.name) + file.size).toString()
           @opts.uploadStarted(file, hash)
