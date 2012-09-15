@@ -62,39 +62,26 @@
       @init()
 
     init: ->
+      @processQ = []
+      @todoQ = []
+
       $(@element).on('drop', @drop).on('dragenter', @dragEnter).on('dragover', @dragOver).on('dragleave', @dragLeave)
       $(document).on('drop', @docDrop).on('dragenter', @docEnter).on('dragover', @docOver).on('dragleave', @docLeave)
 
-      $('#' + @opts.fallback_id).change( (e) =>
-        @docLeave(e)
-        @opts.drop(e)
-        @files = e.target.files
-        unless @files
-          @opts.error(@errors.notSupported)
-          false
-        @processQ = [] ; @todoQ = []
-        @todoQ.push(file) for file in @files
-        for i in [0..@opts.queue_size]
-          file = @todoQ.shift()
-          if file
-            hash = (@hash(file.name) + file.size).toString()
-            @opts.uploadStarted(file, hash)
-            @processQ.push(file)
-            @process(i)
-        e.preventDefault()
-        false
-      )
+      $('#' + @opts.fallback_id).change( @drop )
 
-    process: (i) =>
+    process: (file) =>
       next_file = =>
+        # Remove file element from list
+        @processQ.splice(@processQ.indexOf(file),1)
+
+        # ... and go to the next
         next = @todoQ.shift()
         if next
           next_hash = (@hash(next.name) + next.size).toString()
           @opts.uploadStarted(next, next_hash)
-          @processQ.splice(i, 1, next)
-          @process(i)
-        else
-          @processQ.splice(i, 1, false)
+          @processQ.push(next)
+          @process(next)
 
       progress = (e) =>
         old = 0 if !old?
@@ -164,10 +151,9 @@
             else
               @opts.uploadFinished(file, hash)
             next_file() unless @opts.processNextImmediately
-          fin = (f for f in @processQ when f)
-          @opts.afterAll() if fin.length == 0
+          @opts.afterAll() if @processQ.length == 0
 
-      file = @processQ[i]
+
       if @opts.max_file_size > 0 && file.size > 1048576 * @opts.max_file_size
         @opts.error(@errors.tooLarge)
         next_file()
@@ -180,22 +166,23 @@
         n = 0
         next_chunk()
 
+
     drop: (e) =>
       @docLeave(e)
       @opts.drop(e)
-      @files = e.originalEvent.dataTransfer.files
+      @files = if e.originalEvent.dataTransfer? then e.originalEvent.dataTransfer.files else e.target.files
       unless @files
         @opts.error(@errors.notSupported)
         false
-      @processQ = [] ; @todoQ = []
+
       @todoQ.push(file) for file in @files
-      for i in [0..@opts.queue_size]
+      while @todoQ.length and @processQ.length < @opts.queue_size
         file = @todoQ.shift()
         if file
           hash = (@hash(file.name) + file.size).toString()
           @opts.uploadStarted(file, hash)
           @processQ.push(file)
-          @process(i)
+          @process(file)
       e.preventDefault()
       false
 
