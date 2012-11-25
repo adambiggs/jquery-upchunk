@@ -14,6 +14,7 @@
       chunk_size: 1024,
       file_param: 'file',
       name_param: 'file_name',
+      headers: {},
       max_file_size: 0,
       queue_size: 2,
       processNextImmediately: false,
@@ -88,52 +89,25 @@
       }
 
       Plugin.prototype.init = function() {
-        var _this = this;
+        this.processQ = [];
+        this.todoQ = [];
         $(this.element).on('drop', this.drop).on('dragenter', this.dragEnter).on('dragover', this.dragOver).on('dragleave', this.dragLeave);
         $(document).on('drop', this.docDrop).on('dragenter', this.docEnter).on('dragover', this.docOver).on('dragleave', this.docLeave);
-        return $('#' + this.opts.fallback_id).change(function(e) {
-          var file, hash, i, _i, _j, _len, _ref, _ref1;
-          _this.docLeave(e);
-          _this.opts.drop(e);
-          _this.files = e.target.files;
-          if (!_this.files) {
-            _this.opts.error(_this.errors.notSupported);
-            false;
-          }
-          _this.processQ = [];
-          _this.todoQ = [];
-          _ref = _this.files;
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            file = _ref[_i];
-            _this.todoQ.push(file);
-          }
-          for (i = _j = 0, _ref1 = _this.opts.queue_size; 0 <= _ref1 ? _j <= _ref1 : _j >= _ref1; i = 0 <= _ref1 ? ++_j : --_j) {
-            file = _this.todoQ.pop();
-            if (file) {
-              hash = (_this.hash(file.name) + file.size).toString();
-              _this.opts.uploadStarted(file, hash);
-              _this.processQ.push(file);
-              _this.process(i);
-            }
-          }
-          e.preventDefault();
-          return false;
-        });
+        return $('#' + this.opts.fallback_id).change(this.drop);
       };
 
-      Plugin.prototype.process = function(i) {
-        var chunk_size, chunks, file, n, next_chunk, next_file, progress, send,
+      Plugin.prototype.process = function(file) {
+        var chunk_size, chunks, n, next_chunk, next_file, progress, send,
           _this = this;
         next_file = function() {
           var next, next_hash;
-          next = _this.todoQ.pop();
+          _this.processQ.splice(_this.processQ.indexOf(file), 1);
+          next = _this.todoQ.shift();
           if (next) {
             next_hash = (_this.hash(next.name) + next.size).toString();
             _this.opts.uploadStarted(next, next_hash);
-            _this.processQ.splice(i, 1, next);
-            return _this.process(i);
-          } else {
-            return _this.processQ.splice(i, 1, false);
+            _this.processQ.push(next);
+            return _this.process(next);
           }
         };
         progress = function(e) {
@@ -177,7 +151,7 @@
           return send(chunk, _this.opts.url);
         };
         send = function(chunk, url) {
-          var fd, hash, name, value, xhr, _ref;
+          var fd, hash, key, name, value, xhr, _ref, _ref1;
           hash = (_this.hash(file.name) + file.size).toString();
           if (_this.opts.beforeEach() === false) {
             _this.opts.error(_this.errors.uploadHalted);
@@ -209,10 +183,15 @@
           }
           xhr = new XMLHttpRequest;
           xhr.open('POST', url, true);
+          _ref1 = _this.opts.headers;
+          for (key in _ref1) {
+            value = _ref1[key];
+            xhr.setRequestHeader(key, value);
+          }
           xhr.upload.addEventListener('progress', progress, false);
           xhr.send(fd);
           return xhr.onload = function() {
-            var f, fin, response;
+            var response;
             if ((typeof chunks !== "undefined" && chunks !== null) && n < chunks) {
               next_chunk();
             } else {
@@ -228,24 +207,11 @@
                 next_file();
               }
             }
-            fin = (function() {
-              var _i, _len, _ref1, _results;
-              _ref1 = this.processQ;
-              _results = [];
-              for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-                f = _ref1[_i];
-                if (f) {
-                  _results.push(f);
-                }
-              }
-              return _results;
-            }).call(_this);
-            if (fin.length === 0) {
+            if (_this.processQ.length === 0) {
               return _this.opts.afterAll();
             }
           };
         };
-        file = this.processQ[i];
         if (this.opts.max_file_size > 0 && file.size > 1048576 * this.opts.max_file_size) {
           this.opts.error(this.errors.tooLarge);
           next_file();
@@ -262,28 +228,26 @@
       };
 
       Plugin.prototype.drop = function(e) {
-        var file, hash, i, _i, _j, _len, _ref, _ref1;
+        var file, hash, _i, _len, _ref;
         this.docLeave(e);
         this.opts.drop(e);
-        this.files = e.originalEvent.dataTransfer.files;
+        this.files = e.originalEvent.dataTransfer != null ? e.originalEvent.dataTransfer.files : e.target.files;
         if (!this.files) {
           this.opts.error(this.errors.notSupported);
           false;
         }
-        this.processQ = [];
-        this.todoQ = [];
         _ref = this.files;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           file = _ref[_i];
           this.todoQ.push(file);
         }
-        for (i = _j = 0, _ref1 = this.opts.queue_size; 0 <= _ref1 ? _j <= _ref1 : _j >= _ref1; i = 0 <= _ref1 ? ++_j : --_j) {
-          file = this.todoQ.pop();
+        while (this.todoQ.length && this.processQ.length < this.opts.queue_size) {
+          file = this.todoQ.shift();
           if (file) {
             hash = (this.hash(file.name) + file.size).toString();
             this.opts.uploadStarted(file, hash);
             this.processQ.push(file);
-            this.process(i);
+            this.process(file);
           }
         }
         e.preventDefault();
